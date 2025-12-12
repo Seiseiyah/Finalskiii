@@ -2,7 +2,6 @@
 using System.Reflection.Emit;
 using Finalskiii.Finalskiii.Models;
 using Microsoft.EntityFrameworkCore;
-using SmartsLibrary.Core.Models;
 
 namespace Finalskiii.Finalskiii.Data;
 
@@ -13,9 +12,10 @@ public class LibraryDbContext : DbContext
     { }
 
     public DbSet<Book> Books => Set<Book>();
-    public DbSet<Users> Users => Set<Users>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<Loan> Loans => Set<Loan>();
     public DbSet<Fine> Fines => Set<Fine>();
+    public DbSet<Student> Students => Set<Student>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

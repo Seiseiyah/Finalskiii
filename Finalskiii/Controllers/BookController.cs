@@ -1,89 +1,179 @@
-﻿using Finalskiii.Finalskiii.Data;
+﻿using Finalskiii.Finalskiii;
 using Finalskiii.Finalskiii.Models;
-using Finalskiii.SmartLibrary.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
+using Finalskiii.Finalskiii.DTOs;
 
 namespace Finalskiii.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("SmartLibrary/[controller]")]
     [ApiController]
-    public class BookController : ControllerBase
+    public class BookController : Controller
     {
-        private readonly LibraryDbContext dbContext;
-
-        public BookController(LibraryDbContext dbContext)
+        private readonly DatabaseLibrary db;
+        public BookController(DatabaseLibrary db)
         {
-            this.dbContext = dbContext;
+            this.db = db;
         }
 
         [HttpGet]
-        public IActionResult GetAllBooks()
+        public IActionResult GetBooks()
         {
-            return Ok(dbContext.Books.ToList());
+            var books = db.Books.ToList();
+            return (!books.Any()) ? NotFound("No Books Registered") : Ok(books);
         }
 
-     
-        [HttpGet("{id:guid}")]
-        public IActionResult GetBookById(Guid id)
+        [HttpGet]
+        [Route("GetAllBorrowed/")]
+        public IActionResult BookIssue()
         {
-            var book = dbContext.Books.Find(id);
-            if (book == null)
-                return NotFound();
+            List<BookIssueDto> borrowedbooks = new List<BookIssueDto>();
+            var get_loans = db.Loans.Where(loan => loan.TransactionStatus == "Borrowed").ToList();
+            if (!get_loans.Any() || get_loans.Count() == 0)
+                return NotFound("No Books Added");
+            foreach (var loan in get_loans)
+            {
+                if (loan.book_id is null) continue;
+                var get_loan = db.Loans.Find(loan.LoanId);
+                var get_user = db.Users.Find(loan.ClientId);
+                foreach (var book in loan.book_id)
+                {
+                    var get_book = db.Books.Find(book);
+                    if (get_book == null) continue;
+                    var payload = new BookIssueDto
+                    {
+                        MemberId = get_user!.Id,
+                        BookId = get_book.BookId,
+                        LoanId = get_loan!.LoanId,
+                        Name = get_user.FullName,
+                        Title = get_book.Title,
+                        Author = get_book.Author,
+                        BorrowDate = get_loan.BorrowDate,
+                        DueDate = get_loan.DueDate,
+                    };
+                    borrowedbooks.Add(payload);
+                }
+            }
+            return Ok(borrowedbooks);
+        }
 
-            return Ok(book);
+        [HttpGet]
+        [Route("/GetAllBorrowed/History")]
+        public IActionResult GetAllBorrowedHistory()
+        {
+            List<GetBooksAndRequest> borrowedbooks = new List<GetBooksAndRequest>();
+            var get_loans = db.Loans.Where(loan => loan.TransactionStatus == "Finished").ToList();
+            if (!get_loans.Any() || get_loans.Count() == 0)
+                return NotFound("No Books Added");
+
+            foreach (var loan in get_loans)
+            {
+                if (loan.book_id is null) continue;
+                foreach (var book in loan.book_id)
+                {
+                    var get_book = db.Books.Find(book);
+                    if (get_book == null) continue;
+                    var get_user = db.Users.Find(loan.ClientId);
+                    var payload = new GetBooksAndRequest
+                    {
+                        book_id=get_book.BookId,
+                        Title=get_book.Title,
+                        Publisher=get_book.Publisher,
+                        YearPublish=get_book.YearPublish,
+                        BorrowDate=loan!.BorrowDate,
+                        DueDate=loan!.DueDate,
+                        Username=get_user!.Username,
+                        Role=get_user!.Role,
+                    };
+                    borrowedbooks.Append(payload);
+                }
+            }
+            return Ok(borrowedbooks);
+        }
+
+        [HttpGet]
+        [Route("{bookId:int}")]
+        public IActionResult GetBook(int bookId)
+        {
+            var book = db.Books.Find(bookId);
+            return (book == null) ? NotFound($"#404! Id {bookId} Not Found") : Ok(book);
         }
 
         [HttpPost]
-        public IActionResult AddBook(AddBookDto dto)
+        public IActionResult AddBook(AddBookDTO addBook)
         {
-            var book = new Book
+            var book = new Book()
             {
-                Title = dto.Title,
-                Author = dto.Author,
-                ISBN = dto.ISBN,
-                Category = dto.Category,
-                Status = dto.Status
+                ISBN = addBook.ISBN,
+                Title = addBook.Title,
+                Author = addBook.Author,
+                Publisher = addBook.Publisher,
+                YearPublish = addBook.YearPublish,
+                Category = addBook.Category,
+                isBorrowed = false,
+                Condition = addBook.Condition,
+                CreatedBy = "Librarian",
+                CreatedAt = DateTime.UtcNow
             };
 
-            dbContext.Books.Add(book);
-            dbContext.SaveChanges();
+            db.Books.Add(book);
+            db.SaveChanges();
 
-            return Ok(book);
+            var showResult = new GetBookDTO()
+            {
+                BookId = book.BookId,
+                ISBN = book.ISBN,
+                Title = book.Title,
+                Author = book.Author,
+                Publisher = book.Publisher,
+                YearPublish = book.YearPublish,
+                Category = book.Category,
+                isBorrowed = book.isBorrowed,
+                Condition = book.Condition,
+                CreatedBy = "Librarian",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = "Librarian",
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            return Ok(showResult);
         }
 
-        // PUT: api/Book/{id}
-        [HttpPut("{id:guid}")]
-        public IActionResult UpdateBook(Guid id, UpdateBookDto dto)
+        [HttpPut]
+        [Route("{bookId:int}")]
+        public IActionResult UpdateBook(int bookId, AddBookDTO updateBook)
         {
-            var book = dbContext.Books.Find(id);
+            var getBook = db.Books.Find(bookId);
+            if (getBook == null) return NotFound($"#404, Id \"{bookId}\" Not Found");
 
-            if (book == null)
-                return NotFound();
+            getBook.ISBN = updateBook.ISBN;
+            getBook.Title = updateBook.Title;
+            getBook.Author = updateBook.Author;
+            getBook.Publisher = updateBook.Publisher;
+            getBook.YearPublish = updateBook.YearPublish;
+            getBook.Category = updateBook.Category;
+            getBook.Condition = updateBook.Condition;
+            getBook.UpdatedBy = "Librarian";
+            getBook.UpdatedAt = DateTime.UtcNow;
 
-            book.Title = dto.Title;
-            book.Author = dto.Author;
-            book.ISBN = dto.ISBN;
-            book.Category = dto.Category;
-            book.Status = dto.Status;
+            db.Entry(getBook).State = EntityState.Modified;
+            db.SaveChanges();
 
-            dbContext.SaveChanges();
-            return Ok(book);
+            return Ok(db.Books.Find(bookId));
         }
 
-        // DELETE: api/Book/{id}
-        [HttpDelete("{id:guid}")]
-        public IActionResult DeleteBook(Guid id)
+        [HttpDelete]
+        [Route("{bookId:int}")]
+        public IActionResult DeleteBook(int bookId)
         {
-            var book = dbContext.Books.Find(id);
-            if (book == null)
-                return NotFound();
+            var getBook = db.Books.Find(bookId);
+            if (getBook == null) return NotFound($"#404!, Id {bookId} Not Found");
 
-            dbContext.Books.Remove(book);
-            dbContext.SaveChanges();
+            db.Books.Remove(getBook);
+            db.SaveChanges();
 
-            return Ok(book);
+            return Ok($"Book With Id {bookId} Deleted Successfully.");
         }
     }
 }
-

@@ -1,17 +1,23 @@
 ﻿using Finalskiii.Finalskiii.Enums;
 using Finalskiii.Finalskiii.Models;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SmartsLibrary.Core.Models
+namespace Finalskiii.Finalskiii.Models
 {
-    public class Student : Users
+    public class Student
     {
-        private UserType studentEnum;
-        public Student()
-        {
-             studentEnum =  UserType.Student;
-        }
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int StudentId { get; set; }
 
-        public override int GetBorrowLimit() => 3;
-        public override int GetLoanDays() => 14;
+        [Required]
+        public required int UserId { get; set; }
+
+        [Required]
+        public required int GradeLevel { get; set; }
+
+        [Required]
+        public required string Course { get; set; }
     }
 }

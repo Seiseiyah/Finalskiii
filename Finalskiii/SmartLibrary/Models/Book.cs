@@ -1,26 +1,24 @@
-﻿using Finalskiii.Finalskiii.Enums;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Finalskiii.Finalskiii.Models
 {
     public class Book
     {
-        public int Id { get; set; }
-        public string ISBN { get; set; } = "";
-        public string Title { get; set; } = "";
-        public string Author { get; set; } = "";
-        public BookStatus Status { get; set; } = BookStatus.Available;
-        public string Category { get; internal set; }
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int BookId { get; set; }
+        public required string ISBN { get; set; }
+        public required string Title { get; set; }
+        public required string Author { get; set; }
+        public required string Publisher { get; set; }
+        public required DateOnly YearPublish { get; set; }
+        public required string Category { get; set; }
+        public required bool isBorrowed { get; set; } = false;
+        public required string Condition { get; set; }
+        public required string CreatedBy { get; set; }
+        public required DateTime CreatedAt { get; set; }    
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
-        public static implicit operator Book(Book v)
-        {
-            return new Book
-            {
-                Id = v.Id,
-                ISBN = v.ISBN,
-                Title = v.Title,
-                Author = v.Author,
-                Status = v.Status,
-                Category = v.Category
-            };
-        }
     }
 }

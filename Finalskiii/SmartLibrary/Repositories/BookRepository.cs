@@ -55,8 +55,6 @@ namespace Finalskiii.Finalskiii.Repositories
             if (!string.IsNullOrWhiteSpace(author))
                 q = q.Where(b => EF.Functions.Like(b.Author, $"%{author}%"));
 
-            if (status.HasValue)
-                q = q.Where(b => b.Status == status.Value);
 
             return await q.AsNoTracking().ToListAsync();
         }

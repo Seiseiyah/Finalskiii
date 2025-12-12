@@ -1,18 +1,15 @@
 ﻿using Finalskiii.Finalskiii.Enums;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Finalskiii.Finalskiii.Models
 {
-    public class Faculty : Users
+    public class Faculty 
     {
-        public Faculty()
-        {
-            UserType = UserType.Faculty;
-        }
-
-        // Faculty has a higher borrow limit
-        public override int GetBorrowLimit() => 6;
-
-        // Faculty gets 28 days loan period
-        public override int GetLoanDays() => 28;
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int FacultytId { get; set; }
+        public required int UserId { get; set; }
+        public required string Department { get; set; }
+        public required string Position { get; set; }
     }
 }

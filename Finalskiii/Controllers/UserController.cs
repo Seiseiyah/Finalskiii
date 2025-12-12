@@ -1,37 +1,42 @@
-﻿using System.Runtime.InteropServices;
-using Finalskiii.Finalskiii.Data;
+﻿using Finalskiii.Finalskiii.Data;
+using Finalskiii.Finalskiii.DTOs;
 using Finalskiii.Finalskiii.Enums;
+using Finalskiii.Finalskiii.Interfaces;
 using Finalskiii.Finalskiii.Models;
 using Finalskiii.Finalskiii.Repositories;
-using Finalskiii.SmartLibrary.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
+using System.Data;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
-namespace Finalskiii.Controllers
-{
     //localhost:xxx/api/User
     [Route("api/[controller]")]
     [ApiController]
     public class UserController : ControllerBase
     {
-        private readonly LibraryDbContext dbContext;
-        public UserController(LibraryDbContext dbContext)
+        private readonly IUserRepository _userRepository;
+        public UserController(IUserRepository userRepository)
         {
-            this.dbContext = dbContext;
+            _userRepository = userRepository;
         }
         [HttpGet]
-        public IActionResult GetAllUser()
+        public async Task<IActionResult> GetUsers()
         {
-            return Ok(dbContext.Users.ToList());
+            var users = await _userRepository.GetAllAsync();
+            if (!users.Any()) return NotFound("No User Registered");
+
+            return Ok(users);
         }
 
         [HttpGet]
-        [Route("{id:guid}")]
-        public IActionResult GetUserById(Guid id)
+        [Route("{userId:int}")]
+        public async Task<IActionResult> GetUserById(Guid userId)
         {
-            var user = dbContext.Users.Find(id);
+            var user = await _userRepository.GetAllAsync();
             if (user == null)
             {
                 return NotFound();
@@ -39,56 +44,71 @@ namespace Finalskiii.Controllers
             return Ok(user);
         }
 
-        [HttpPost]
-        public IActionResult AddUser(AddUserDto addUserDto)
+    [HttpPost("/Register")]
+    public async Task<IActionResult> Register(AddUserDTOs addUser)
+    {
+        string role;
+
+        if (addUser.Email.EndsWith("@faculty.school.edu"))
         {
-            var userEntity = new Users
-            {
-                Id = addUserDto.Id,
-                Fullname = addUserDto.FullName,
-                Email = addUserDto.Email,
-                UserType = addUserDto.UserType
-            };
-
-            dbContext.Users.Add(userEntity);
-            dbContext.SaveChanges();
-
-            return Ok(userEntity);
+            role = "Faculty";
+        }
+        else if (addUser.Email.EndsWith("@student.school.edu"))
+        {
+            role = "Student";
+        }
+        else if (addUser.Email.Contains("admin"))
+        {
+            role = "Admin";
+        }
+        else
+        {
+            // Default fallback role
+            role = "Guest";
         }
 
-        [HttpPut]
-        public IActionResult UpdateUser(Guid id, UpdateUserDto updateUserDto)
+        var user = new User
         {
-            var user = dbContext.Users.Find(id);
+            FullName = addUser.FullName,
+            Username = addUser.Username,
+            Email = addUser.Email,
+            Password = addUser.Password,
+            Role = role
+        };
+
+        await _userRepository.AddAsync(user);
+        var payload = new GetUserDTO
+        {
+            Fullname = user.FullName,
+            UserId = user.Id,
+            Username = user.Username,
+            Email = user.Email,
+            Role = user.Role
+        };
+
+        return Ok(payload);
+    }
+
+    [HttpPut]
+        public async Task<IActionResult> UpdateUser(int Id, UpdateUserDTO updateUser)
+        {
+            var user = await _userRepository.GetByIdAsync(Id);
             if (user == null)
-            {
-                return NotFound();
-            }
+           
+            user.Username = updateUser.Username;
+            await _userRepository.UpdateAsync(user);
 
-            user.Id = updateUserDto.Id;
-            user.FullName = updateUserDto.FullName;
-            user.Email = updateUserDto.Email;
-            user.UserType = updateUserDto.UserType;
-
-            dbContext.SaveChanges();
             return Ok(user);
         }
 
-        [HttpDelete]
-        public IActionResult DeleteUser(Guid id)
+        [HttpDelete ("{Id: int}")]
+        public async Task<IActionResult> DeleteUser(int Id)
         {
-            var user = dbContext.Users.Find(id);
-
+            var user = await _userRepository.GetByIdAsync(Id);
             if (user is null)
-            {
-                return NotFound();
-            }
 
-            dbContext.Users.Remove(user);
-            dbContext.SaveChanges();
-
-            return Ok(user);
+                await _userRepository.DeleteAsync(user);
+            return Ok($"User With Id {Id} deleted");
         }
 
     }
-}

@@ -1,95 +1,74 @@
-﻿using Finalskiii.Finalskiii.Data;
-using Finalskiii.Finalskiii.Enums;
-using Finalskiii.Finalskiii.Models;
-using Finalskiii.SmartLibrary.Models;
+﻿using Finalskiii.Finalskiii.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Finalskiii.Finalskiii.DTOs;
+using Finalskiii.Finalskiii.Interface;
 
-namespace Finalskiii.Controllers
+[Route("SmartLibrary/[controller]")]
+[ApiController]
+public class FacultyController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class FacultyController : ControllerBase
+    private readonly IFacultyRepository _facultyRepository;
+
+    public FacultyController(IFacultyRepository facultyRepository)
     {
-        private readonly LibraryDbContext dbContext;
+        _facultyRepository = facultyRepository;
+    }
 
-        public FacultyController(LibraryDbContext dbContext)
+    [HttpGet]
+    public async Task<IActionResult> GetFaculties()
+    {
+        var faculties = await _facultyRepository.GetAllAsync();
+        return (!faculties.Any()) ? NotFound("No Faculties Registered") : Ok(faculties);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetFaculty(int id)
+    {
+        var faculty = await _facultyRepository.GetByIdAsync(id);
+        return (faculty == null) ? NotFound($"#404! Id {id} Not Found") : Ok(faculty);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AddFaculty(AddFacultyDTO addFaculty)
+    {
+        var faculty = new Faculty
         {
-            this.dbContext = dbContext;
-        }
+            UserId = addFaculty.UserId,
+            Department = addFaculty.Department,
+            Position = addFaculty.Position
+        };
 
-        // GET: api/Faculty
-        [HttpGet]
-        public IActionResult GetAllFaculty()
+        await _facultyRepository.AddAsync(faculty);
+
+        return Ok(new GetFacultyDTO
         {
-            var facultyList = dbContext.Users
-                .Where(u => u.UserType == UserType.Faculty)
-                .ToList();
+            FacultytId = faculty.FacultytId,
+            UserId = faculty.UserId,
+            Department = faculty.Department,
+            Position = faculty.Position
+        });
+    }
 
-            return Ok(facultyList);
-        }
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateFaculty(int id, UpdateFacultyDTO updateFaculty)
+    {
+        var faculty = await _facultyRepository.GetByIdAsync(id);
+        if (faculty == null) return NotFound($"#404, Id {id} Not Found");
 
-        // GET: api/Faculty/{id}
-        [HttpGet("{id:guid}")]
-        public IActionResult GetFacultyById(Guid id)
-        {
-            var faculty = dbContext.Users
-                .FirstOrDefault(u => u.Id == id && u.UserType == UserType.Faculty);
+        faculty.Department = updateFaculty.Department;
+        faculty.Position = updateFaculty.Position;
 
-            if (faculty == null)
-                return NotFound();
+        await _facultyRepository.UpdateAsync(faculty);
+        return Ok(faculty);
+    }
 
-            return Ok(faculty);
-        }
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteFaculty(int id)
+    {
+        var faculty = await _facultyRepository.GetByIdAsync(id);
+        if (faculty == null) return NotFound($"#404!, Id {id} Not Found");
 
-        // POST: api/Faculty
-        [HttpPost]
-        public IActionResult AddFaculty(AddUserDto dto)
-        {
-            var faculty = new Users()
-            {
-                Id = Guid.NewGuid(),
-                Fullname = dto.FullName,
-                Email = dto.Email,
-                UserType = UserType.Faculty
-            };
-
-            dbContext.Users.Add(faculty);
-            dbContext.SaveChanges();
-
-            return Ok(faculty);
-        }
-
-        // PUT: api/Faculty/{id}
-        [HttpPut("{id:guid}")]
-        public IActionResult UpdateFaculty(Guid id, UpdateUserDto dto)
-        {
-            var faculty = dbContext.Users
-                .FirstOrDefault(u => u.Id == id && u.UserType == UserType.Faculty);
-
-            if (faculty == null)
-                return NotFound();
-
-            faculty.FullName = dto.FullName;
-            faculty.Email = dto.Email;
-
-            dbContext.SaveChanges();
-            return Ok(faculty);
-        }
-
-        // DELETE: api/Faculty/{id}
-        [HttpDelete("{id:guid}")]
-        public IActionResult DeleteFaculty(Guid id)
-        {
-            var faculty = dbContext.Users
-                .FirstOrDefault(u => u.Id == id && u.UserType == UserType.Faculty);
-
-            if (faculty == null)
-                return NotFound();
-
-            dbContext.Users.Remove(faculty);
-            dbContext.SaveChanges();
-            return Ok(faculty);
-        }
+        await _facultyRepository.DeleteAsync(faculty);
+        return Ok($"Faculty With Id {id} Deleted Successfully.");
     }
 }
